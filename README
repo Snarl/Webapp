@@ -1,0 +1,34 @@
+Howto Deploy Webapp (using the Git Read-Only url)
+=================================================
+local_username@localmachine:~/$ ssh remote_username@domain.com
+remote_username@domain.com's password:
+[remote_server]$ pwd
+/home/remote_username
+[remote_server]$ ls
+domain.com
+[remote_server]$ cd domain.com/
+[remote_server]$ git clone git@github.com:Snarl/Webapp.git
+Cloning into Webapp...
+
+Generating Webapp jsdocs
+========================
+Health Warning: This howto relates to local development, using the symlinking of my project directory to /var/www is just because I am lazy. Making apache follow symlinks is not recommended for a production server.
+Other Notes: make sure apache is configured to follow symlinks if you want to use /var/www in this way
+
+cd ~/
+mkdir Snarl
+cd Snarl
+wget http://jsdoc-toolkit.googlecode.com/files/jsdoc_toolkit-2.4.0.zip
+unzip jsdoc_toolkit-2.4.0.zip
+rm jsdoc_toolkit-2.4.0.zip
+git clone git://github.com/Snarl/Webapp.git
+symlink the newly created Webapp folder to /var/www
+
+satisfy REQUIREMENTS from /jsdoc-toolkit/README.txt
+working with OpenJDK Runtime Environment (IcedTea6 1.9.9) on Ubuntu 10.04
+
+n.b. because it clogs up the output html I like to temporary remove googlemaps.js, jquery-1.4.4.js and phonegap.0.9.4.js from working dir
+cd jsdoc_toolkit-2.4.0/jsdoc-toolkit/
+java -jar jsrun.jar app/run.js -a -t=templates/jsdoc -d=/var/www/Webapp/docs /var/www/Webapp
+
+Finally, the documentation can be viewed at http://localhost/Webapp/docs

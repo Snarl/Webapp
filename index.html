@@ -1,0 +1,285 @@
+<!DOCTYPE HTML>
+<html>
+<head>
+<meta name="viewport" content="width=device-width, user-scalable=no, initial-scale=1.0, maximum-scale=1.0">
+<meta http-equiv="Content-type" content="text/html; charset=utf-8">
+<link rel="shortcut icon" href="favicon.png" type="image/x-icon">
+<title>Sukey App</title>
+<link   type="text/css"        rel="stylesheet" href="master.css" media="screen" charset="utf-8">
+<script type="text/javascript" src="http://maps.google.com/maps/api/js?sensor=true"></script>
+<script type="text/javascript" src="jquery-1.4.4.js"></script>
+<script type="text/javascript" charset="utf-8" src="phonegap.0.9.4.js"></script>
+<script type="text/javascript" src="ticker-1.2.js"></script>
+<script type="text/javascript" src="sukeyReport.js"></script>
+<script type="text/javascript" src="sukeyVote.js"></script>
+<script type="text/javascript" src="sukeyPhoneDisplay.js"></script>
+<script type="text/javascript" src="sukeymap.js"></script>
+<script type="text/javascript" src="sukeySettings.js"></script>
+<script type="text/javascript">
+
+/* jsl:option explicit */
+
+/* jsl:import phonegap.0.9.4.js */
+/* jsl:import ticker-1.2.js */
+/* jsl:import SukeyPhoneDisplay.js*/
+/* jsl:import sukeymap.js */
+/* jsl:import sukeyReport.js */
+/* jsl:import sukeyVote.js */
+
+
+var initialisationTimer;
+var mode = "compass";
+var displayWidth = 0;
+var displayHeight = 0;
+
+
+function buzz(){
+	if (canVibrate){
+		navigator.notification.vibrate(30);
+	}
+}
+function showAbout(){
+	hideMenu();
+	if ($('#reportdiv').is( ":visible")){ $('#reportdiv').hide(); }
+	$('#about').css('zIndex', 1005);
+	$('#about').fadeIn();
+}
+function closeAbout(){
+	$('#about').fadeOut();
+}
+function toggleMenu(){
+	if ($('#votediv').is( ":visible")) {cancelVote();}
+	var menu=$('#menu');
+	menu.css('zIndex', 9999);
+	if (menu.is( ":visible" )){
+		menu.slideUp( ); 
+	} else {
+		menu.slideDown( );
+	}
+}
+
+function hideMenu(){
+	var menu=$('#menu');
+	if (menu.is( ":visible" )){
+		menu.slideUp( );
+	}
+}
+
+function switchToMap(){
+	hideMenu();
+	if ($('#about').is( ":visible")){ closeAbout();}		
+	if ($('#reportdiv').is( ":visible")){ $('#reportdiv').hide(); }
+	$('canvas').remove();
+	initMap('scr');
+}
+function switchToCompass(){
+	hideMenu();
+	if ($('#about').is( ":visible")){ closeAbout();}		
+	if ($('#reportdiv').is( ":visible")){ $('#reportdiv').hide(); }
+	closeMap();
+	var scr = document.getElementById("scr");
+	canvas = document.createElement("canvas");
+	var w = Math.min($(window).width(),$(window).height() - 96);
+	scr.appendChild(canvas,scr.firstChild);
+	canvas.style.width =  w+'px';
+	canvas.style.height = w+'px';
+	canvas.style.margin = "0 auto";
+	canvas.width = w;
+	canvas.height = w;
+	initialiseCompass();
+}
+
+function reallyExit(btn){
+	if (btn == 1){
+		PhoneGap.exec(null, null, "App", "clearCache", []);
+		BackButton.reset();
+		BackButton.exitApp();
+	}
+}
+
+function exitApp(){
+    navigator.notification.confirm(
+        'Exit Sukey - Are you sure?',
+        reallyExit,
+        'Tea Time is Over?',
+        'Quit,Stay' );
+}
+
+function doResize(){
+	displayWidth = $(window).width();
+	displayHeight = $(window).height();
+	if (!canvas){
+		canvas = document.getElementById("canvas");}
+	var w = Math.min(displayWidth,displayHeight - 96);
+	canvas.style.width =   w + "px";
+	canvas.style.height = w + "px";
+	canvas.width = w * 100;
+	canvas.height = w * 100;	
+	$('#container').width(displayWidth - 93);
+	$('#reportdiv').height(displayHeight - 90);
+	$('#votediv').height(displayHeight - 90);
+	$('#about').height(displayHeight - 90);
+	$('#settingsdiv').height(displayHeight - 90);
+	$('#reportpics').css({top: displayHeight - 305});
+	$('#menu').width(displayWidth);
+	$('.menubutton').css({width: displayWidth/4 + 'px'});
+	$("#ticker").width( $("#container").width() - 10);
+}
+
+function initialise(){
+	doResize();
+	getTickerRSS();
+	switchToCompass();
+	if (!canUseCamera){
+		document.getElementById('files').addEventListener('change', handleFileSelect, false);
+	}
+}
+
+function initDroid(){
+	clearTimeout(initialisationTimer);
+	canVibrate = true;
+	canUseCompass=true;
+	canUseCamera = true;
+	canUseGeo = true;
+	canUseAjax=true;
+
+	KeyEvent.prototype.menuTrigger = 
+	function(){
+  		var e = document.createEvent('Events');
+  		e.initEvent('menuKeyDown');
+  		document.dispatchEvent(e);
+	};
+	KeyEvent.prototype.backTrigger = 
+	function() {
+	    var e = document.createEvent('Events');
+	    e.initEvent('backKeyDown');
+	    document.dispatchEvent(e);
+	};
+	KeyEvent.prototype.searchTrigger = 
+	function() {
+	    var e = document.createEvent('Events');
+	    e.initEvent('searchKeyDown');
+	    document.dispatchEvent(e);
+	};
+	BackButton.override();
+	document.addEventListener("menuKeyDown", function() {toggleMenu();});
+	document.addEventListener("searchKeyDown", function() {gatherReport();});
+	document.addEventListener("backKeyDown", function() {exitApp();});
+	readSettings();
+ 	initialise();
+}
+
+
+function initPC(){
+	URLReport = "http://127.0.0.1/sukey2/report.php?callback=?";
+	document.getElementById("sukey").onclick=function(){toggleMenu();};
+	alert("Couldn't find Android - running in PC Emulation Mode");
+	canVibrate = false;
+	canUseCompass=false;
+	canUseCamera = false;
+	canUseGeo = false;
+	canUseAjax=true;
+	compassOrientation=25;
+	initialise();
+}
+
+function onLoad() {
+	canvas = document.getElementById("canvas");
+	initialisationTimer = setTimeout("initPC()",3000);
+	document.addEventListener("deviceready", initDroid, false);
+}
+
+$(document).ready(onLoad());
+</script> 
+</head>
+
+<body >
+<div id="lhs"></div>
+<div id="container" align="left">
+	<div id="ticker"></div>
+</div>
+<div id="sukey"></div>
+
+<div id='scr'>
+	<canvas id="canvas">
+		Your browser is not compatible with the HTML 5 Sukey Compass View. Bad times :( 
+		<a href="http://sukey.org/webapp/">http://sukey.org/webapp/</a>
+	</canvas>
+</div>
+<div id='votediv'>
+</div>
+<div id='reportdiv'> 
+	<div style="opacity: 0.0;">
+		<input type="file" id="files" name="files[]" />
+	</div>
+	<div id="reportform">
+	Tell Sukey what you saw
+	<table>
+		<tr><td>What</td><td><TEXTAREA NAME='reportwhat' id='reportwhat' ROWS=3 COLS=25></TEXTAREA></td></tr>
+		<tr><td>When</td><td><input type=text name='reportwhen' id='reportwhen' value="Now"></td></tr>
+		<tr><td>Where</td><td><input type=text name='reportwhere' id='reportwhere' value=""></td></tr>
+	</table>
+	</div>		
+	<div id="reportpics">
+		<img onclick="photoReport(1);" style="display:inline;width:100px;height:100px;" id="image1" src="camera.png" />
+		<img onclick="photoReport(2);" style="display:inline;width:100px;height:100px;" id="image2" src="camera.png" />
+		<img onclick="photoReport(3);" style="display:inline;width:100px;height:100px;" id="image3" src="camera.png" />
+	</div>
+	<div id="reportbuttons"  onclick="submitReport();">
+		<div style="float:right"><img src='reportsendbutton.png'></div>
+		<div style="float:right;padding:17px 0px;">Click here to send your report to Sukey</div>
+	</div>
+</div>
+<div id="changepic">
+	<img id="thisPic" src=""/><BR/>
+	<button onclick="deletePic();"><img src="trash.png"</button>
+	<button onclick="keepPic();"><img src="keep.png"></button>
+</div>
+<div id="menu"> 
+	<div class="menubutton" onclick="switchToMap();"><img src='map.png'></div>
+	<div class="menubutton" onclick="switchToCompass();"><img src='compassbtn.png'></div>
+	<div class="menubutton" onclick="gatherReport();"><img src='report.png'></div>
+	<div class="menubutton" onclick="showAbout();"><img src='about.png'></div>
+</div>	
+<div id='about' align="center" > 
+	<div id="credits"> 
+		<p>Sukey is brought to you by Team Sukey:</p> 
+		<p><a href="http://www.gaffen.co.uk/" target="_blank">Gaffen</a><br/> 
+		Gausie<br/> 
+		<a href="http://www.samthetechie.com/" target="_blank">Samuel Carlisle</a><br/> 
+		<a href="http://www.dmi.me.uk/" target="_blank">Dave Ingram</a><br/> 
+		SukeyB<br/> 
+		RoshLi<br/> 
+		<a href="http://beyondclicktivism.com/" target="_blank">Tim Hardy</a><br/></p> 
+		<p>We loved making the app so we hope you like using it.</p>
+		<p><a href="http://sukey.org/sukey2/minidonate.html">We rely on donations, however small, to keep Sukey going.  Please click here to find out how you can help.</a></p>
+		<p>Kind Regards, Team Sukey (;..;)</p> 
+		<button onclick="showSettings();">Configuration</button>
+	</div> 
+</div> 
+<div id='settingsdiv'>
+	<div style="text-align: left">
+	<table>
+		<tr><td>Red</td><td><input type=text id='red' onchange="showcolor('red');"/></td></tr>
+		<tr><td>Amber</td><td><input type=text id='amber' onchange="showcolor('amber');"/></td></tr>
+		<tr><td>Green</td><td><input type=text id='green' onchange="showcolor('green');"/></td></tr>
+		<tr><td>Use Compass</td><td><input type=checkbox id='usecompass'/></td></tr>
+		<tr><td>Use Camera</td><td><input type=checkbox id='usecamera'/></td></tr>
+		<tr><td>Use Vibrate</td><td><input type=checkbox id='usevibrate'/></td></tr>
+		<tr><td>Use GPS</td><td><input type=checkbox id='usegps'/></td></tr>
+		<tr><td>Sukey Server</td><td><input type=URL id='server'/></td></tr>
+	</table>
+	</div>
+	<div style='width:100%; bottom:10px'>
+		<div style='position:absolute;left:0px; bottom:5px;background=#999999'  onclick='cancelSettings();'>
+			<img src='reportcancelbutton.png' style='float:left'>
+			<div style='float:left;padding:7px 0px;background:#999999'>&nbsp;Cancel&nbsp;<BR/>&nbsp;Changes&nbsp;</div>
+		</div>
+		<div style='position:absolute;right:0px; bottom:5px; background=#999999' onclick='saveSettings();'>
+			<img src='reportsendbutton.png' style='float:right'>
+			<div style='float:right;padding:7px 0px;background:#999999'>&nbsp;Save&nbsp;<BR/>&nbsp;Changes&nbsp;</div>
+		</div>
+	</div>
+</div>
+</body> 
+</html>
