@@ -9,6 +9,12 @@ domain.com
 [remote_server]$ cd domain.com/
 [remote_server]$ git clone git@github.com:Snarl/Webapp.git
 Cloning into Webapp...
+remote: Counting objects: 32, done.
+remote: Compressing objects: 100% (23/23), done.
+remote: Total 32 (delta 6), reused 32 (delta 6)
+Receiving objects: 100% (32/32), 164.23 KiB, done.
+Resolving deltas: 100% (6/6), done.
+
 
 Generating Webapp jsdocs
 ========================
