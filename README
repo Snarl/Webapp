@@ -1,3 +1,7 @@
+<h1>Snarl Webapp</h1>
+
+
+
 Howto Deploy Webapp (using the Git Read-Only url)
 =================================================
 local_username@localmachine:~/$ ssh remote_username@domain.com
